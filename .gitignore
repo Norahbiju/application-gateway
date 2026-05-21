@@ -1,0 +1,12 @@
+.terraform/
+.repo-*/
+*.tfstate
+*.tfstate.*
+*.tfplan
+.azure/
+.plan_key*
+crash.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json

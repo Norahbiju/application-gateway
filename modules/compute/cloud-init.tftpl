@@ -1,0 +1,123 @@
+#cloud-config
+package_update: true
+package_upgrade: false
+packages:
+  - ca-certificates
+  - curl
+  - git
+  - gnupg
+  - nginx
+
+write_files:
+  - path: /usr/local/bin/bootstrap-${app_name}.sh
+    permissions: "0755"
+    content: |
+      #!/usr/bin/env bash
+      set -euxo pipefail
+
+      APP_NAME="${app_name}"
+      REPO_URL="${repo_url}"
+      HOST_NAME="${host_name}"
+      APP_PORT="${app_port}"
+      MONGODB_DATABASE="${mongodb_database}"
+      START_COMMAND="${start_command}"
+      APP_DIR="/opt/apps/$APP_NAME"
+      NODE_MAJOR="20"
+
+      install_node() {
+        if ! command -v node >/dev/null 2>&1; then
+          curl -fsSL "https://deb.nodesource.com/setup_$${NODE_MAJOR}.x" | bash -
+          apt-get install -y nodejs
+        fi
+      }
+
+      install_mongodb() {
+        if ! command -v mongod >/dev/null 2>&1; then
+          install -d -m 0755 /etc/apt/keyrings
+          curl -fsSL https://pgp.mongodb.com/server-7.0.asc | gpg --dearmor -o /etc/apt/keyrings/mongodb-server-7.0.gpg
+          echo "deb [ arch=amd64,arm64 signed-by=/etc/apt/keyrings/mongodb-server-7.0.gpg ] https://repo.mongodb.org/apt/ubuntu jammy/mongodb-org/7.0 multiverse" > /etc/apt/sources.list.d/mongodb-org-7.0.list
+          apt-get update
+          apt-get install -y mongodb-org
+        fi
+
+        systemctl enable mongod
+        systemctl restart mongod
+      }
+
+      install_node
+      install_mongodb
+
+      rm -rf "$APP_DIR"
+      mkdir -p /opt/apps
+      git clone "$REPO_URL" "$APP_DIR"
+
+      cd "$APP_DIR"
+      npm install
+
+      if [ -f "$APP_DIR/server/package.json" ]; then
+        cd "$APP_DIR/server"
+        npm install
+        cd "$APP_DIR"
+      fi
+
+      chown -R root:root "$APP_DIR"
+
+      cat > "/etc/systemd/system/$APP_NAME.service" <<SERVICE
+      [Unit]
+      Description=$APP_NAME Node.js application
+      After=network-online.target mongod.service
+      Wants=network-online.target mongod.service
+
+      [Service]
+      Type=simple
+      WorkingDirectory=$APP_DIR
+      Environment=NODE_ENV=production
+      Environment=HOST=127.0.0.1
+      Environment=PORT=$APP_PORT
+      Environment=MONGODB_URI=mongodb://127.0.0.1:27017/$MONGODB_DATABASE
+      ExecStart=/bin/bash -lc "$START_COMMAND"
+      Restart=always
+      RestartSec=10
+      User=root
+
+      [Install]
+      WantedBy=multi-user.target
+      SERVICE
+
+      cat > "/etc/nginx/sites-available/$APP_NAME" <<NGINX
+      server {
+        listen 80 default_server;
+        listen [::]:80 default_server;
+        server_name $HOST_NAME;
+
+        location /healthz {
+          access_log off;
+          add_header Content-Type text/plain;
+          return 200 "ok";
+        }
+
+        location / {
+          proxy_pass http://127.0.0.1:$APP_PORT;
+          proxy_http_version 1.1;
+          proxy_set_header Host \$host;
+          proxy_set_header X-Real-IP \$remote_addr;
+          proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+          proxy_set_header X-Forwarded-Proto \$scheme;
+          proxy_set_header Upgrade \$http_upgrade;
+          proxy_set_header Connection "upgrade";
+        }
+      }
+      NGINX
+
+      rm -f /etc/nginx/sites-enabled/default
+      ln -sf "/etc/nginx/sites-available/$APP_NAME" "/etc/nginx/sites-enabled/$APP_NAME"
+
+      systemctl daemon-reload
+      systemctl enable "$APP_NAME"
+      systemctl restart "$APP_NAME"
+      nginx -t
+      systemctl enable nginx
+      systemctl restart nginx
+
+runcmd:
+  - [bash, /usr/local/bin/bootstrap-${app_name}.sh]
