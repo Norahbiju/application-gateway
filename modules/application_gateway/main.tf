@@ -101,7 +101,7 @@ resource "azurerm_application_gateway" "this" {
 
     content {
       name                  = "http-settings-${backend_http_settings.key}"
-      cookie_based_affinity = "Disabled"
+      cookie_based_affinity = "Enabled"
       path                  = "/"
       port                  = 80
       protocol              = "Http"
