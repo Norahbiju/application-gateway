@@ -10,15 +10,16 @@ variable "resource_group_name" {
   type = string
 }
 
-variable "app_gateway_subnet_id" {
-  type = string
+variable "database_names" {
+  type = list(string)
 }
 
-variable "backend_targets" {
-  type = map(object({
-    host_name    = string
-    display_name = string
-  }))
+variable "spoke_vnet_ids" {
+  type = map(string)
+}
+
+variable "spoke_subnet_ids" {
+  type = map(string)
 }
 
 variable "tags" {

@@ -20,6 +20,7 @@ write_files:
       HOST_NAME="${host_name}"
       APP_PORT="${app_port}"
       MONGODB_DATABASE="${mongodb_database}"
+      MONGODB_CONNECTION_STRING="${mongodb_connection_string}"
       START_COMMAND="${start_command}"
       APP_DIR="/opt/apps/$APP_NAME"
       NODE_MAJOR="20"
@@ -31,21 +32,7 @@ write_files:
         fi
       }
 
-      install_mongodb() {
-        if ! command -v mongod >/dev/null 2>&1; then
-          install -d -m 0755 /etc/apt/keyrings
-          curl -fsSL https://pgp.mongodb.com/server-7.0.asc | gpg --dearmor -o /etc/apt/keyrings/mongodb-server-7.0.gpg
-          echo "deb [ arch=amd64,arm64 signed-by=/etc/apt/keyrings/mongodb-server-7.0.gpg ] https://repo.mongodb.org/apt/ubuntu jammy/mongodb-org/7.0 multiverse" > /etc/apt/sources.list.d/mongodb-org-7.0.list
-          apt-get update
-          apt-get install -y mongodb-org
-        fi
-
-        systemctl enable mongod
-        systemctl restart mongod
-      }
-
       install_node
-      install_mongodb
 
       rm -rf "$APP_DIR"
       mkdir -p /opt/apps
@@ -65,8 +52,8 @@ write_files:
       cat > "/etc/systemd/system/$APP_NAME.service" <<SERVICE
       [Unit]
       Description=$APP_NAME Node.js application
-      After=network-online.target mongod.service
-      Wants=network-online.target mongod.service
+      After=network-online.target
+      Wants=network-online.target
 
       [Service]
       Type=simple
@@ -74,7 +61,9 @@ write_files:
       Environment=NODE_ENV=production
       Environment=HOST=127.0.0.1
       Environment=PORT=$APP_PORT
-      Environment=MONGODB_URI=mongodb://127.0.0.1:27017/$MONGODB_DATABASE
+      Environment=MONGODB_URI=$MONGODB_CONNECTION_STRING
+      Environment=MONGO_URI=$MONGODB_CONNECTION_STRING
+      Environment=DATABASE_NAME=$MONGODB_DATABASE
       ExecStart=/bin/bash -lc "$START_COMMAND"
       Restart=always
       RestartSec=10

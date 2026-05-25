@@ -10,8 +10,12 @@ variable "resource_group_name" {
   type = string
 }
 
-variable "backend_subnet_id" {
-  type = string
+variable "spoke_subnet_ids" {
+  type = map(string)
+}
+
+variable "application_gateway_backend_pool_ids" {
+  type = map(string)
 }
 
 variable "vm_size" {
@@ -54,7 +58,13 @@ variable "apps" {
     app_port         = number
     mongodb_database = string
     start_command    = string
+    instance_count   = number
   }))
+}
+
+variable "mongodb_connection_string" {
+  type      = string
+  sensitive = true
 }
 
 variable "tags" {

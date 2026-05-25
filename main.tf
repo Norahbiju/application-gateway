@@ -7,6 +7,7 @@ locals {
       app_port         = 5656
       mongodb_database = "restorent"
       start_command    = "node src/app.js"
+      instance_count   = var.vmss_instance_count
     }
 
     fitness = {
@@ -16,6 +17,7 @@ locals {
       app_port         = 5000
       mongodb_database = "fitness-tracker"
       start_command    = "npm start"
+      instance_count   = var.vmss_instance_count
     }
   }
 }
@@ -29,32 +31,50 @@ resource "azurerm_resource_group" "this" {
 module "network" {
   source = "./modules/network"
 
-  project_name                = var.project_name
-  location                    = var.location
-  resource_group_name         = azurerm_resource_group.this.name
-  vnet_address_space          = var.vnet_address_space
-  app_gateway_subnet_prefixes = var.app_gateway_subnet_prefixes
-  backend_subnet_prefixes     = var.backend_subnet_prefixes
-  ssh_source_address_prefix   = var.ssh_source_address_prefix
-  tags                        = var.tags
+  project_name                        = var.project_name
+  location                            = var.location
+  resource_group_name                 = azurerm_resource_group.this.name
+  hub_vnet_address_space              = var.hub_vnet_address_space
+  application_gateway_subnet_prefixes = var.application_gateway_subnet_prefixes
+  azure_firewall_subnet_prefixes      = var.azure_firewall_subnet_prefixes
+  azure_bastion_subnet_prefixes       = var.azure_bastion_subnet_prefixes
+  organic_vnet_address_space          = var.organic_vnet_address_space
+  organic_subnet_prefixes             = var.organic_subnet_prefixes
+  fitness_vnet_address_space          = var.fitness_vnet_address_space
+  fitness_subnet_prefixes             = var.fitness_subnet_prefixes
+  tags                                = var.tags
+}
+
+module "cosmosdb" {
+  source = "./modules/cosmosdb"
+
+  project_name        = var.project_name
+  location            = var.location
+  resource_group_name = azurerm_resource_group.this.name
+  database_names      = distinct([for app in local.apps : app.mongodb_database])
+  spoke_vnet_ids      = module.network.spoke_vnet_ids
+  spoke_subnet_ids    = module.network.spoke_subnet_ids
+  tags                = var.tags
 }
 
 module "compute" {
   source = "./modules/compute"
 
-  project_name        = var.project_name
-  location            = var.location
-  resource_group_name = azurerm_resource_group.this.name
-  backend_subnet_id   = module.network.backend_subnet_id
-  vm_size             = var.vm_size
-  admin_username      = var.admin_username
+  project_name                         = var.project_name
+  location                             = var.location
+  resource_group_name                  = azurerm_resource_group.this.name
+  spoke_subnet_ids                     = module.network.spoke_subnet_ids
+  application_gateway_backend_pool_ids = module.application_gateway.backend_address_pool_ids
+  vm_size                              = var.vm_size
+  admin_username                       = var.admin_username
   admin_auth = {
     type           = var.authentication_type
     password       = var.admin_password
     ssh_public_key = var.admin_ssh_public_key
   }
-  apps = local.apps
-  tags = var.tags
+  apps                      = local.apps
+  mongodb_connection_string = module.cosmosdb.mongodb_connection_string
+  tags                      = var.tags
 }
 
 module "application_gateway" {
@@ -63,7 +83,12 @@ module "application_gateway" {
   project_name          = var.project_name
   location              = var.location
   resource_group_name   = azurerm_resource_group.this.name
-  app_gateway_subnet_id = module.network.app_gateway_subnet_id
-  backend_targets       = module.compute.backend_targets
-  tags                  = var.tags
+  app_gateway_subnet_id = module.network.application_gateway_subnet_id
+  backend_targets = {
+    for key, app in local.apps : key => {
+      host_name    = app.host_name
+      display_name = app.display_name
+    }
+  }
+  tags = var.tags
 }

@@ -20,6 +20,26 @@ output "dns_a_records" {
 }
 
 output "selected_vm_size" {
-  description = "VM size used for backend VMs."
+  description = "VM size used for backend VMSS instances."
   value       = var.vm_size
+}
+
+output "firewall_public_ip" {
+  description = "Public IP address of the Azure Firewall."
+  value       = module.network.firewall_public_ip_address
+}
+
+output "bastion_public_ip" {
+  description = "Public IP address of the Azure Bastion host."
+  value       = module.network.bastion_public_ip_address
+}
+
+output "cosmosdb_account_name" {
+  description = "Cosmos DB Mongo API account used by both applications."
+  value       = module.cosmosdb.account_name
+}
+
+output "vmss_ids" {
+  description = "VM scale set resource IDs by app."
+  value       = module.compute.vmss_ids
 }

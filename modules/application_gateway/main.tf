@@ -73,8 +73,7 @@ resource "azurerm_application_gateway" "this" {
     for_each = var.backend_targets
 
     content {
-      name         = "pool-${backend_address_pool.key}"
-      ip_addresses = [backend_address_pool.value.private_ip]
+      name = "pool-${backend_address_pool.key}"
     }
   }
 

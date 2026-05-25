@@ -57,33 +57,63 @@ variable "admin_ssh_public_key" {
 }
 
 variable "vm_size" {
-  description = "VM size for backend VMs. Run scripts/write-vm-sku-auto-tfvars.ps1 to populate this from az vm list-skus in West US."
+  description = "VM size for backend VM scale set instances. Run scripts/write-vm-sku-auto-tfvars.ps1 to populate this from az vm list-skus in West US."
   type        = string
   default     = "Standard_B2s"
 }
 
-variable "vnet_address_space" {
-  description = "Address space for the virtual network."
+variable "vmss_instance_count" {
+  description = "Number of instances in each app VM scale set."
+  type        = number
+  default     = 2
+}
+
+variable "hub_vnet_address_space" {
+  description = "Address space for the hub virtual network."
   type        = list(string)
   default     = ["10.20.0.0/16"]
 }
 
-variable "app_gateway_subnet_prefixes" {
-  description = "Address prefixes for the Application Gateway subnet."
+variable "application_gateway_subnet_prefixes" {
+  description = "Address prefixes for the hub Application Gateway subnet."
   type        = list(string)
   default     = ["10.20.1.0/24"]
 }
 
-variable "backend_subnet_prefixes" {
-  description = "Address prefixes for the backend VMs subnet."
+variable "azure_firewall_subnet_prefixes" {
+  description = "Address prefixes for the hub Azure Firewall subnet. Azure requires this subnet to be named AzureFirewallSubnet."
   type        = list(string)
-  default     = ["10.20.2.0/24"]
+  default     = ["10.20.2.0/26"]
 }
 
-variable "ssh_source_address_prefix" {
-  description = "Optional source CIDR allowed to SSH to backend VMs. Leave null to disable inbound SSH."
-  type        = string
-  default     = null
+variable "azure_bastion_subnet_prefixes" {
+  description = "Address prefixes for the hub Azure Bastion subnet. Azure requires this subnet to be named AzureBastionSubnet."
+  type        = list(string)
+  default     = ["10.20.3.0/26"]
+}
+
+variable "organic_vnet_address_space" {
+  description = "Address space for the organic spoke virtual network."
+  type        = list(string)
+  default     = ["10.21.0.0/16"]
+}
+
+variable "organic_subnet_prefixes" {
+  description = "Address prefixes for the organic app subnet."
+  type        = list(string)
+  default     = ["10.21.1.0/24"]
+}
+
+variable "fitness_vnet_address_space" {
+  description = "Address space for the fitness spoke virtual network."
+  type        = list(string)
+  default     = ["10.22.0.0/16"]
+}
+
+variable "fitness_subnet_prefixes" {
+  description = "Address prefixes for the fitness app subnet."
+  type        = list(string)
+  default     = ["10.22.1.0/24"]
 }
 
 variable "tags" {
