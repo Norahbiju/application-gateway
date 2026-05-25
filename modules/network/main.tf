@@ -123,6 +123,22 @@ resource "azurerm_firewall_network_rule_collection" "allow_outbound" {
   }
 }
 
+resource "azurerm_firewall_network_rule_collection" "allow_spoke_cosmos_private_endpoint" {
+  name                = "AllowSpokeCosmosPrivateEndpoint"
+  azure_firewall_name = azurerm_firewall.hub.name
+  resource_group_name = var.resource_group_name
+  priority            = 110
+  action              = "Allow"
+
+  rule {
+    name                  = "AllowMongoPrivateEndpoint"
+    source_addresses      = concat(var.organic_subnet_prefixes, var.fitness_subnet_prefixes)
+    destination_ports     = ["10255"]
+    destination_addresses = concat(var.organic_subnet_prefixes, var.fitness_subnet_prefixes)
+    protocols             = ["TCP"]
+  }
+}
+
 resource "azurerm_route_table" "spoke" {
   for_each = local.spokes
 
@@ -137,6 +153,17 @@ resource "azurerm_route_table" "spoke" {
     address_prefix         = "0.0.0.0/0"
     next_hop_type          = "VirtualAppliance"
     next_hop_in_ip_address = azurerm_firewall.hub.ip_configuration[0].private_ip_address
+  }
+
+  dynamic "route" {
+    for_each = each.key == "organic" ? var.fitness_vnet_address_space : var.organic_vnet_address_space
+
+    content {
+      name                   = "RouteToOtherSpokeViaAzureFirewall"
+      address_prefix         = route.value
+      next_hop_type          = "VirtualAppliance"
+      next_hop_in_ip_address = azurerm_firewall.hub.ip_configuration[0].private_ip_address
+    }
   }
 }
 
