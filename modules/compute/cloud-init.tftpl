@@ -47,14 +47,30 @@ write_files:
         cd "$APP_DIR"
       fi
 
-      export APP_DIR MONGODB_DATABASE MONGODB_CONNECTION_STRING
+      MONGODB_APP_CONNECTION_STRING="$(python3 - <<'PYTHON'
+      import os
+      from urllib.parse import urlsplit, urlunsplit
+
+      database = os.environ["MONGODB_DATABASE"]
+      parsed = urlsplit(os.environ["MONGODB_CONNECTION_STRING"])
+      print(urlunsplit((
+          parsed.scheme,
+          parsed.netloc,
+          f"/{database}",
+          parsed.query,
+          parsed.fragment,
+      )))
+      PYTHON
+      )"
+
+      export APP_DIR MONGODB_DATABASE MONGODB_APP_CONNECTION_STRING
       python3 - <<'PYTHON'
       import os
       from pathlib import Path
 
       app_dir = Path(os.environ["APP_DIR"])
       database = os.environ["MONGODB_DATABASE"]
-      connection_string = os.environ["MONGODB_CONNECTION_STRING"]
+      connection_string = os.environ["MONGODB_APP_CONNECTION_STRING"]
       replacements = {
           f"mongodb://127.0.0.1:27017/{database}": connection_string,
           f"mongodb://127.0.0.1/{database}": connection_string,
@@ -89,8 +105,8 @@ write_files:
       Environment=NODE_ENV=production
       Environment=HOST=127.0.0.1
       Environment=PORT=$APP_PORT
-      Environment=MONGODB_URI=$MONGODB_CONNECTION_STRING
-      Environment=MONGO_URI=$MONGODB_CONNECTION_STRING
+      Environment=MONGODB_URI=$MONGODB_APP_CONNECTION_STRING
+      Environment=MONGO_URI=$MONGODB_APP_CONNECTION_STRING
       Environment=DATABASE_NAME=$MONGODB_DATABASE
       ExecStart=/bin/bash -lc "$START_COMMAND"
       Restart=always
