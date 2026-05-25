@@ -60,6 +60,8 @@ module "cosmosdb" {
 module "compute" {
   source = "./modules/compute"
 
+  depends_on = [module.cosmosdb]
+
   project_name                         = var.project_name
   location                             = var.location
   resource_group_name                  = azurerm_resource_group.this.name

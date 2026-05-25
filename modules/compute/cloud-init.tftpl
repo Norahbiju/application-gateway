@@ -47,6 +47,34 @@ write_files:
         cd "$APP_DIR"
       fi
 
+      export APP_DIR MONGODB_DATABASE MONGODB_CONNECTION_STRING
+      python3 - <<'PYTHON'
+      import os
+      from pathlib import Path
+
+      app_dir = Path(os.environ["APP_DIR"])
+      database = os.environ["MONGODB_DATABASE"]
+      connection_string = os.environ["MONGODB_CONNECTION_STRING"]
+      replacements = {
+          f"mongodb://127.0.0.1:27017/{database}": connection_string,
+          f"mongodb://127.0.0.1/{database}": connection_string,
+          f"mongodb://localhost:27017/{database}": connection_string,
+          f"mongodb://localhost/{database}": connection_string,
+      }
+
+      for path in app_dir.rglob("*.js"):
+          if "node_modules" in path.parts:
+              continue
+
+          text = path.read_text(encoding="utf-8", errors="ignore")
+          updated = text
+          for old, new in replacements.items():
+              updated = updated.replace(old, new)
+
+          if updated != text:
+              path.write_text(updated, encoding="utf-8")
+      PYTHON
+
       chown -R root:root "$APP_DIR"
 
       cat > "/etc/systemd/system/$APP_NAME.service" <<SERVICE
