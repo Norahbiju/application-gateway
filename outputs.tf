@@ -39,6 +39,12 @@ output "cosmosdb_account_name" {
   value       = module.cosmosdb.account_name
 }
 
+output "cosmosdb_mongodb_connection_string" {
+  description = "Cosmos DB MongoDB connection string used by the frontend services."
+  value       = module.cosmosdb.mongodb_connection_string
+  sensitive   = true
+}
+
 output "vmss_ids" {
   description = "VM scale set resource IDs by app."
   value       = module.compute.vmss_ids
