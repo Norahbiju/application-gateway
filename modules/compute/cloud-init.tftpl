@@ -62,6 +62,7 @@ write_files:
       )))
       PYTHON
       )"
+      export MONGODB_APP_CONNECTION_STRING
 
       export APP_DIR MONGODB_DATABASE MONGODB_APP_CONNECTION_STRING
       python3 - <<'PYTHON'
@@ -143,6 +144,8 @@ write_files:
       NGINX
 
       rm -f /etc/nginx/sites-enabled/default
+      rm -f /etc/nginx/conf.d/default.conf
+      find /etc/nginx/sites-enabled -type l ! -name "$APP_NAME" -delete
       ln -sf "/etc/nginx/sites-available/$APP_NAME" "/etc/nginx/sites-enabled/$APP_NAME"
 
       systemctl daemon-reload
