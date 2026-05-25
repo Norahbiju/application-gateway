@@ -47,21 +47,7 @@ write_files:
         cd "$APP_DIR"
       fi
 
-      MONGODB_APP_CONNECTION_STRING="$(python3 - <<'PYTHON'
-      import os
-      from urllib.parse import urlsplit, urlunsplit
-
-      database = os.environ["MONGODB_DATABASE"]
-      parsed = urlsplit(os.environ["MONGODB_CONNECTION_STRING"])
-      print(urlunsplit((
-          parsed.scheme,
-          parsed.netloc,
-          f"/{database}",
-          parsed.query,
-          parsed.fragment,
-      )))
-      PYTHON
-      )"
+      MONGODB_APP_CONNECTION_STRING="$${MONGODB_CONNECTION_STRING/\?//$MONGODB_DATABASE?}"
       export MONGODB_APP_CONNECTION_STRING
 
       export APP_DIR MONGODB_DATABASE MONGODB_APP_CONNECTION_STRING
